@@ -52,7 +52,7 @@
             const cookieValue = getCookie(cookieName);
             if (!cookieValue || isCookieExpired(cookieValue)) {
                 // Redirect to sign-in page
-                window.location.href = '/signin';
+                window.location.href = '/minermod/signin';
             }
         }
 
@@ -120,7 +120,7 @@
                 })
             });
             if (response.ok) {
-                window.location.href = `/editor?repo=${repo}`;
+                window.location.href = `/minermod/editor?repo=${repo}`;
             } else {
                 statusElement.textContent = 'Failed to create the mod file.';
             }
