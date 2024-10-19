@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Finalizing Sign In</title>
+</head>
+<body>
+    <h1>Finalizing Sign In...</h1>
+    <script>
+        // Replace with your GitHub app's client ID and secret
+        const clientId = 'Ov23liNFXQgQXuS6s3A0'; // Your GitHub Client ID
+        const clientSecret = '047f31994ca3ab70e6beda83a853cc46d1daacfc'; // Your GitHub Client Secret
+        const redirectUri = 'https://anthony-maxwell1.github.io/minermod/finishsignin'; // Your redirect URI
+
+        const params = new URLSearchParams(window.location.search);
+        const code = params.get('code'); // Get the authorization code
+
+        if (code) {
+            // Request to exchange the code for an access token
+            fetch(`https://github.com/login/oauth/access_token`, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    client_id: clientId,
+                    client_secret: clientSecret,
+                    code: code,
+                    redirect_uri: redirectUri
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                const token = data.access_token;
+                if (token) {
+                    document.cookie = 'ghtoken=' + token + ';max-age=31536000;path=/'; // Store token in cookie
+                    // window.location.href = '/';
+                } else {
+                    console.error('Authentication failed:', data);
+                    alert("An error occurred. Please check the console for more details.");
+                }
+            })
+            .catch(error => {
+                console.error('Error during token exchange:', error);
+                alert("An error occurred while finalizing sign in. Please try again.");
+            });
+        } else {
+            console.error('Authentication failed due to no code provided. Go to /signin and try again.');
+            alert("An error occurred. Please check the console.");
+        }
+    </script>
+</body>
+</html>

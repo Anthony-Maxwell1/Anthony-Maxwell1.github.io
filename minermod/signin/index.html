@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign In</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: Arial, sans-serif;
+            background-color: #1e1e1e;
+            color: #d4d4d4;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        h1 {
+            margin-bottom: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #3c3c3c;
+            color: #d4d4d4;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #4c4c4c;
+        }
+    </style>
+</head>
+<body>
+    <h1>Sign In with GitHub</h1>
+    <button id="signin-button">Sign In</button>
+
+    <script>
+        // GitHub OAuth2 settings
+        const clientId = 'Ov23liNFXQgQXuS6s3A0'; // Replace with your GitHub client ID
+        const redirectUri = 'https://anthony-maxwell1.github.io/minermod/finishsignin'; // Replace with your redirect URI
+
+        // Function to redirect to GitHub's OAuth2 authorization page
+        document.getElementById('signin-button').addEventListener('click', () => {
+            const scope = 'repo'; // Adjust scopes as needed
+            const url = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}`;
+            window.location.href = url;
+        });
+    </script>
+</body>
+</html>

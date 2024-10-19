@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Code Editor</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: Arial, sans-serif;
+            background-color: #1e1e1e;
+            color: #d4d4d4;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        .toolbar {
+            background-color: #2d2d2d;
+            padding: 5px;
+        }
+        .toolbar button {
+            margin-right: 5px;
+            background-color: #3c3c3c;
+            color: #d4d4d4;
+            border: none;
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+        .toolbar button:hover {
+            background-color: #4c4c4c;
+        }
+        .main-content {
+            display: flex;
+            flex: 1;
+        }
+        .file-browser {
+            width: 200px;
+            background-color: #252526;
+            padding: 10px;
+            overflow-y: auto;
+        }
+        .file-item {
+            cursor: pointer;
+            padding: 5px;
+            user-select: none;
+        }
+        .file-item:hover {
+            background-color: #2a2d2e;
+        }
+        .file-item.selected {
+            background-color: #37373d;
+        }
+        .file-item input {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 2px;
+            background-color: #3c3c3c;
+            color: #d4d4d4;
+            border: 1px solid #555;
+        }
+        #editor {
+            flex: 1;
+        }
+        .status-bar {
+            background-color: #007acc;
+            color: #ffffff;
+            padding: 5px;
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="toolbar">
+            <button onclick="saveFile()">Save</button>
+            <button onclick="deleteFile()">Delete</button>
+        </div>
+        <div class="main-content">
+            <div class="file-browser" id="file-browser"></div>
+            <div id="editor"></div>
+        </div>
+        <div class="status-bar" id="status-bar">Ready</div>
+    </div>
+
+    <script src="https://unpkg.com/monaco-editor/min/vs/loader.js"></script>
+    <script>
+        let editor;
+        let currentFile = null;
+        let selectedFile = null;
+        let fileSystem = {}; // Updated to store files fetched from the repo
+        const params = new URLSearchParams(window.location.search);
+        const repo = params.get('repo'); // Get repo from query params
+        const cookieName = 'ghtoken'; // Change this to your actual cookie name
+
+        // Function to check if cookie exists and is valid
+        function checkCookie() {
+            const cookieValue = getCookie(cookieName);
+            if (!cookieValue || isCookieExpired(cookieValue)) {
+                // Redirect to sign-in page
+                window.location.href = '/';
+            }
+        }
+
+        // Function to get cookie value
+        function getCookie(name) {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+            return null;
+        }
+
+        // Function to check if cookie is expired (implement your own logic)
+        function isCookieExpired(cookieValue) {
+            return false; // Replace with actual expiration check
+        }
+
+        require.config({ paths: { 'vs': 'https://unpkg.com/monaco-editor/min/vs' }});
+        require(['vs/editor/editor.main'], function() {
+            editor = monaco.editor.create(document.getElementById('editor'), {
+                value: '',
+                language: 'plaintext',
+                automaticLayout: true,
+            });
+        });
+
+        // Function to fetch files from the repository
+        async function fetchFiles() {
+            const response = await fetch(`https://api.github.com/repos/${repo}/contents/`, {
+                    headers: {
+                        'Authorization': `token ${getCookie(cookieName)}`
+                    }
+                }
+            );
+            if (response.ok) {
+                const files = await response.json();
+                fileSystem = {}; // Clear existing file system
+                files.forEach(file => {
+                    if (file.type === 'file') {
+                        fileSystem[file.name] = file;
+                        const fileItem = document.createElement('div');
+                        fileItem.className = 'file-item';
+                        fileItem.textContent = file.name;
+                        fileItem.onclick = () => openFile(file.name);
+                        document.getElementById('file-browser').appendChild(fileItem);
+                    }
+                });
+            } else {
+                document.getElementById('status-bar').textContent = 'Failed to fetch files.';
+            }
+        }
+
+        // Function to open a file and load its content
+        async function openFile(fileName) {
+            selectedFile = fileName; // Store the selected file name
+            const file = fileSystem[fileName];
+            currentFile = file; // Store the current file reference
+
+            const response = await fetch(file.download_url);
+            if (response.ok) {
+                const content = await response.text();
+                editor.setValue(content);
+                document.querySelectorAll('.file-item').forEach(item => item.classList.remove('selected'));
+                document.querySelector(`.file-item:contains('${fileName}')`).classList.add('selected');
+                document.getElementById('status-bar').textContent = `Editing: ${fileName}`;
+            } else {
+                document.getElementById('status-bar').textContent = 'Failed to load file.';
+            }
+        }
+
+        // Function to save the current file
+        async function saveFile() {
+            if (currentFile) {
+                const content = editor.getValue();
+                const response = await fetch(`https://api.github.com/repos/${repo}/contents/${currentFile}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `token ${getCookie(cookieName)}` // Use the stored cookie for auth
+                    },
+                    body: JSON.stringify({
+                        message: 'Update ' + currentFile,
+                        content: btoa(content), // Encode the content to base64
+                        sha: currentFile.sha // Get the SHA of the file to update it
+                    })
+                });
+                if (response.ok) {
+                    document.getElementById('status-bar').textContent = 'File saved successfully!';
+                } else {
+                    document.getElementById('status-bar').textContent = 'Failed to save file.';
+                }
+            } else {
+                document.getElementById('status-bar').textContent = 'No file selected to save.';
+            }
+        }
+
+        // Function to delete the current file
+        async function deleteFile() {
+            if (currentFile) {
+                const response = await fetch(`https://api.github.com/repos/${repo}/contents/minermod/${currentFile}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `token ${getCookie(cookieName)}` // Use the stored cookie for auth
+                    },
+                    body: JSON.stringify({
+                        message: 'Delete ' + currentFile,
+                        sha: currentFile.sha // Get the SHA of the file to delete it
+                    })
+                });
+                if (response.ok) {
+                    document.getElementById('status-bar').textContent = 'File deleted successfully!';
+                    fetchFiles(); // Refresh the file list
+                    editor.setValue(''); // Clear the editor
+                    currentFile = null; // Reset the current file reference
+                } else {
+                    document.getElementById('status-bar').textContent = 'Failed to delete file.';
+                }
+            } else {
+                document.getElementById('status-bar').textContent = 'No file selected to delete.';
+            }
+        }
+
+        // Initial checks
+        checkCookie();
+        fetchFiles();
+    </script>
+</body>
+</html>
